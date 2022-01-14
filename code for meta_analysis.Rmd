@@ -1,0 +1,171 @@
+---
+title: "meta_analyses"
+output: html_document
+---
+
+```{r initiation}
+library(dmetar)
+library(esc)
+library(tidyverse)
+library(metafor)
+library(meta)
+```
+
+```{r import data}
+library(readxl)
+setwd("~/Documents/<junior/the scientific research practice")
+MetaAnalysis_data <- read_excel("MetaAnalysis_data.xlsx")
+MetaAnalysis_data <- data.frame(MetaAnalysis_data)
+```
+
+```{r meta analysis under random-effects model}
+m.result <- metacont(data = MetaAnalysis_data,
+                     studlab = Author,
+                     n.e = e.n,
+                     mean.e = e.PBI.mean,
+                     sd.e = e.PBI.sd,
+                     n.c = c.n,
+                     mean.c = c.PBI.mean,
+                     sd.c = c.PBI.sd,
+                     sm = "SMD", # summary measure: Standardized Mean Difference
+                     method.smd = "Hedges", # calculate the Hedge's g
+                     fixed = FALSE,
+                     random = TRUE, # use random-effects model
+                     method.tau = "REML", # estimate tau by Restricted Maximum Likelihood method
+                     hakn = TRUE, # Knapp-Hartung adjustment
+                     prediction = TRUE, # calculate prediction interval
+                     title = "meta analysis result")
+summary(m.result)
+```
+```{r Forest Plot}
+forest.meta(m.result,
+            xlim = c(-2,1),
+            layout = "JAMA")
+```
+
+```{r determine the influence articles}
+m.inf <- InfluenceAnalysis(m.result, random = TRUE) 
+```
+
+```{r Baujat plot}
+plot(m.inf,"baujat")
+```
+
+```{r leave-one-out plot}
+plot(m.inf,"es")
+plot(m.inf,"i2")
+```
+
+```{r GOSH plot analysis}
+m.rma <- rma(yi = m.result$TE,
+             sei = m.result$seTE,
+             method = m.result$method.tau,
+             test = "knha")
+res.gosh <- gosh(m.rma)
+plot(res.gosh, alpha = 0.05)
+```
+
+```{r proactive index & PBI comparison}
+MetaAnalysis_data.all <- MetaAnalysis_data[!(MetaAnalysis_data$delay=="short"),]
+m.result.proactive.index <- metacont(data = MetaAnalysis_data.all,
+                     studlab = Author,
+                     n.e = e.n,
+                     mean.e = e.proactive.index.mean,
+                     sd.e = e.proactive.index.sd,
+                     n.c = c.n,
+                     mean.c = c.proactive.index.mean,
+                     sd.c = c.proactive.index.sd,
+                     sm = "SMD", # summary measure: Standardized Mean Difference
+                     method.smd = "Hedges", # calculate the Hedge's g
+                     fixed = FALSE,
+                     random = TRUE, # use random-effects model
+                     method.tau = "REML", # estimate tau by Restricted Maximum Likelihood method
+                     hakn = TRUE, # Knapp-Hartung adjustment
+                     prediction = TRUE, # calculate prediction interval
+                     title = "meta analysis result by proavtive index")
+summary(m.result.proactive.index)
+```
+
+```{r PBI}
+m.result.PBI <- metacont(data = MetaAnalysis_data.all,
+                     studlab = Author,
+                     n.e = e.n,
+                     mean.e = e.PBI.mean,
+                     sd.e = e.PBI.sd,
+                     n.c = c.n,
+                     mean.c = c.PBI.mean,
+                     sd.c = c.PBI.sd,
+                     sm = "SMD", # summary measure: Standardized Mean Difference
+                     method.smd = "Hedges", # calculate the Hedge's g
+                     fixed = FALSE,
+                     random = TRUE, # use random-effects model
+                     method.tau = "REML", # estimate tau by Restricted Maximum Likelihood method
+                     hakn = TRUE, # Knapp-Hartung adjustment
+                     prediction = TRUE, # calculate prediction interval
+                     title = "meta analysis result by PBI")
+summary(m.result.PBI)
+```
+
+```{r Forest Plot for proactive index}
+forest.meta(m.result.proactive.index,xlim = c(-3,1),layout = "JAMA")
+```
+
+```{r Forest Plot for PBI}
+forest.meta(m.result.PBI,xlim = c(-2,1),layout = "JAMA")
+```
+
+```{r influential articles for PBI}
+m.inf.PBI <- InfluenceAnalysis(m.result.PBI, random = TRUE) 
+plot(m.inf.PBI,"baujat")
+```
+
+```{r GOSH analysis for PBI}
+m.rma.PBI <- rma(yi = m.result.PBI$TE,
+             sei = m.result.PBI$seTE,
+             method = m.result.PBI$method.tau,
+             test = "knha")
+res.gosh.PBI <- gosh(m.rma.PBI)
+plot(res.gosh.PBI, alpha = 0.2)
+```
+
+
+```{r subgroup analysis}
+MetaAnalysis_data.subgroup <- MetaAnalysis_data[MetaAnalysis_data$delay!="-",]
+MetaAnalysis_data.long <- MetaAnalysis_data.subgroup[MetaAnalysis_data.subgroup$delay=="long",]
+MetaAnalysis_data.short <- MetaAnalysis_data.subgroup[MetaAnalysis_data.subgroup$delay=="short",]
+```
+
+```{r total meta-analysis}
+m.result.subgroup <- metacont(data = MetaAnalysis_data.subgroup,
+                     studlab = Author,
+                     n.e = e.n,
+                     mean.e = e.PBI.mean,
+                     sd.e = e.PBI.sd,
+                     n.c = c.n,
+                     mean.c = c.PBI.mean,
+                     sd.c = c.PBI.sd,
+                     sm = "SMD", # summary measure: Standardized Mean Difference
+                     method.smd = "Hedges", # calculate the Hedge's g
+                     fixed = FALSE,
+                     random = TRUE, # use random-effects model
+                     method.tau = "REML", # estimate tau by Restricted Maximum Likelihood method
+                     hakn = TRUE, # Knapp-Hartung adjustment
+                     prediction = TRUE, # calculate prediction interval
+                     title = "meta analysis result combining long & short delay")
+summary(m.result.subgroup)
+```
+
+```{r forest plot}
+forest.meta(m.result.subgroup,xlim = c(-3,1),layout = "JAMA")
+```
+
+```{r Subgroup analysis}
+update.meta(m.result.subgroup, subgroup = delay, tau.common = TRUE)
+```
+
+```{r meta regression by the publish time}
+years <- MetaAnalysis_data.all$Year
+m.gen.reg <- metareg(m.result.PBI, ~years)
+summary(m.gen.reg)
+bubble(m.gen.reg, studlab = TRUE)
+```
